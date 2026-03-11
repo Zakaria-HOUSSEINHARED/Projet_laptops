@@ -1,0 +1,196 @@
+const Groq = require('groq-sdk');
+const { pool } = require('../config/db');
+
+const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+/**
+ * Collecte les données du stock depuis MySQL
+ * @returns {Promise<Object>} Données consolidées du parc
+ */
+const collecterDonnees = async () => {
+  const [[totaux]]      = await pool.query(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(statut='DISPONIBLE')    AS disponibles,
+      SUM(statut='ATTRIBUE')      AS attribues,
+      SUM(statut='EN_REPARATION') AS en_maintenance
+    FROM laptops
+  `);
+  const [parMarque]     = await pool.query('SELECT marque, COUNT(*) AS nb FROM laptops GROUP BY marque');
+  const [parEtat]       = await pool.query('SELECT etat, COUNT(*) AS nb FROM laptops GROUP BY etat');
+  const [maintenances]  = await pool.query("SELECT * FROM maintenances WHERE statut IN ('OUVERT','EN_COURS')");
+  const [alertes]       = await pool.query('SELECT * FROM alertes WHERE est_lue=FALSE');
+  const [mouvements30j] = await pool.query(
+    "SELECT type, COUNT(*) AS nb FROM mouvements WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY type"
+  );
+
+  return { totaux, parMarque, parEtat, maintenances, alertes, mouvements30j };
+};
+
+/**
+ * Génère un rapport IA en langage naturel via Claude API
+ * POST /api/ia/rapport
+ * @param {Object} req - Requête Express
+ * @param {Object} res - Réponse Express
+ */
+const genererRapportIA = async (req, res) => {
+  const { demande } = req.body;
+
+  try {
+    const donnees = await collecterDonnees();
+
+    const prompt = `
+Voici les données actuelles du parc informatique LaptopStock Manager :
+
+📊 INVENTAIRE GLOBAL :
+- Total laptops : ${donnees.totaux.total}
+- Disponibles   : ${donnees.totaux.disponibles} (${Math.round(donnees.totaux.disponibles / donnees.totaux.total * 100)}%)
+- Attribués     : ${donnees.totaux.attribues} (${Math.round(donnees.totaux.attribues / donnees.totaux.total * 100)}%)
+- En maintenance: ${donnees.totaux.en_maintenance}
+
+📦 RÉPARTITION PAR MARQUE :
+${donnees.parMarque.map(m => `- ${m.marque}: ${m.nb} unités`).join('\n')}
+
+🔧 ÉTAT DU PARC :
+${donnees.parEtat.map(e => `- ${e.etat}: ${e.nb} unités`).join('\n')}
+
+⚠️ TICKETS OUVERTS : ${donnees.maintenances.length}
+🔔 ALERTES NON LUES : ${donnees.alertes.length}
+
+📈 MOUVEMENTS 30 DERNIERS JOURS :
+${donnees.mouvements30j.map(m => `- ${m.type}: ${m.nb} opérations`).join('\n')}
+
+Demande de l'administrateur : "${demande || 'Génère un rapport mensuel complet pour la direction'}"
+
+Génère un rapport professionnel structuré en JSON avec exactement ces champs :
+{
+  "resume_executif": "...",
+  "analyse_parc": "...",
+  "tendances": ["...", "..."],
+  "recommandations": [
+    { "priorite": "critique|haute|moyenne", "action": "..." }
+  ],
+  "conclusion": "..."
+}
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.
+    `.trim();
+
+    let reponse = null;
+    let tentatives = 0;
+
+    // Retry automatique (max 3 fois)
+    while (!reponse && tentatives < 3) {
+      tentatives++;
+      try {
+        const completion = await client.chat.completions.create({
+          model:      'llama-3.3-70b-versatile',
+          max_tokens: 4000,
+          messages:   [
+            { role: 'system', content: 'Tu es un expert analyste en gestion de parc informatique. Tu rédiges des rapports professionnels en français. Tu réponds UNIQUEMENT en JSON valide.' },
+            { role: 'user', content: prompt }
+          ]
+        });
+        reponse = completion.choices[0].message.content;
+      } catch (apiErr) {
+        if (tentatives === 3) throw apiErr;
+        await new Promise(r => setTimeout(r, 1000 * tentatives));
+      }
+    }
+
+    // Parser la réponse JSON
+    let rapportData;
+    try {
+      const cleaned = reponse.replace(/```json|```/g, '').trim();
+      rapportData = JSON.parse(cleaned);
+    } catch {
+      // Fallback si JSON invalide
+      rapportData = { resume_executif: reponse, analyse_parc: '', tendances: [], recommandations: [], conclusion: '' };
+    }
+
+    // Sauvegarder en base
+    const [result] = await pool.query(
+      'INSERT INTO rapports (id_utilisateur, titre, type_rapport, format, genere_par_ia, contenu_ia) VALUES (?,?,?,?,?,?)',
+      [req.user.id, `Rapport IA — ${new Date().toLocaleDateString('fr-FR')}`, 'MENSUEL', 'PDF', true, JSON.stringify(rapportData)]
+    );
+
+    res.json({ id_rapport: result.insertId, rapport: rapportData, donnees });
+
+  } catch (err) {
+    // Fallback rapport tabulaire classique
+    console.error('Erreur Groq API:', err.message);
+    res.status(503).json({
+      message: 'Service IA temporairement indisponible — rapport tabulaire généré',
+      fallback: true,
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Diagnostic de panne assisté par IA
+ * POST /api/ia/diagnostic
+ */
+const diagnosticIA = async (req, res) => {
+  const { description_panne, id_laptop } = req.body;
+  if (!description_panne) return res.status(400).json({ message: 'Description de la panne requise' });
+
+  try {
+    let contexte = '';
+    if (id_laptop) {
+      const [[laptop]] = await pool.query('SELECT * FROM laptops WHERE id_laptop=?', [id_laptop]);
+      const [historique] = await pool.query(
+        'SELECT * FROM maintenances WHERE id_laptop=? ORDER BY created_at DESC LIMIT 5', [id_laptop]
+      );
+      if (laptop) {
+        contexte = `\nLaptop concerné : ${laptop.marque} ${laptop.modele} (${laptop.numero_serie})
+État : ${laptop.etat}, RAM: ${laptop.ram}Go
+Historique maintenance : ${historique.length} tickets précédents`;
+      }
+    }
+
+    const completion = await client.chat.completions.create({
+      model:      'llama-3.3-70b-versatile',
+      max_tokens: 1000,
+      messages:   [
+        { role: 'system', content: 'Tu es un expert technicien informatique. Analyse les pannes de laptops et fournis un diagnostic précis en JSON.' },
+        {
+          role:    'user',
+          content: `Panne décrite : "${description_panne}"${contexte}
+
+Réponds en JSON avec exactement :
+{
+  "cause_probable": "...",
+  "niveau_urgence": "critique|modere|faible",
+  "actions_recommandees": ["...", "..."],
+  "estimation_duree": "..."
+}`
+        }
+      ]
+    });
+
+    const cleaned = completion.choices[0].message.content.replace(/```json|```/g, '').trim();
+    const diagnostic = JSON.parse(cleaned);
+    res.json(diagnostic);
+
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur diagnostic IA', error: err.message });
+  }
+};
+
+/**
+ * Récupère l'historique des rapports IA
+ * GET /api/ia/rapports
+ */
+const getHistoriqueRapports = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_rapport, titre, type_rapport, date_generation, genere_par_ia, created_at
+       FROM rapports WHERE genere_par_ia = TRUE ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+};
+
+module.exports = { genererRapportIA, diagnosticIA, getHistoriqueRapports };
