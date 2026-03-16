@@ -21,7 +21,9 @@ const truncateText = (value, max = 180) => {
 };
 
 const extractJsonObject = (text) => {
-  const cleaned = String(text || "").replace(/```json|```/g, "").trim();
+  const cleaned = String(text || "")
+    .replace(/```json|```/g, "")
+    .trim();
   try {
     return JSON.parse(cleaned);
   } catch (_) {
@@ -180,7 +182,10 @@ const genererRapportIA = async (req, res) => {
 
     const total = donnees.totaux.total || 1; // évite division par zéro
     const laptopsForPrompt = donnees.laptopsDetail.slice(0, OLLAMA_MAX_LAPTOPS);
-    const maintenancesForPrompt = donnees.maintenances.slice(0, OLLAMA_MAX_ITEMS);
+    const maintenancesForPrompt = donnees.maintenances.slice(
+      0,
+      OLLAMA_MAX_ITEMS,
+    );
     const alertesForPrompt = donnees.alertes.slice(0, OLLAMA_MAX_ITEMS);
 
     const prompt = `
@@ -260,19 +265,36 @@ Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après, sans markdo
         const reponse2 = await chatOllama(
           "Tu es un assistant strict. Réponds uniquement en JSON valide conforme au schéma demandé.",
           `${prompt}\n\nIMPORTANT: le JSON doit être complet et fermé correctement.`,
-          { forceJson: true, numPredictOverride: Math.max(OLLAMA_NUM_PREDICT, 320) },
+          {
+            forceJson: true,
+            numPredictOverride: Math.max(OLLAMA_NUM_PREDICT, 320),
+          },
         );
         rapportData = normalizeRapport(extractJsonObject(reponse2));
       } catch (_) {
-      if (OLLAMA_ENABLE_JSON_REPAIR) {
-        try {
-          const repaired = await repairJsonWithLlm(
-            reponse,
-            "rapport_ia: {resume_executif, analyse_parc, tendances[], recommandations[{priorite,action}], conclusion}",
+        if (OLLAMA_ENABLE_JSON_REPAIR) {
+          try {
+            const repaired = await repairJsonWithLlm(
+              reponse,
+              "rapport_ia: {resume_executif, analyse_parc, tendances[], recommandations[{priorite,action}], conclusion}",
+            );
+            rapportData = normalizeRapport(extractJsonObject(repaired));
+          } catch (_) {
+            console.warn("Réponse IA non parsable:", parseErr.message);
+            rapportData = {
+              resume_executif:
+                "Le modèle a renvoyé un format invalide. Relancez la génération.",
+              analyse_parc: "",
+              tendances: [],
+              recommandations: [],
+              conclusion: "Aucun rapport exploitable généré.",
+            };
+          }
+        } else {
+          console.warn(
+            "Réponse IA non parsable (repair off):",
+            parseErr.message,
           );
-          rapportData = normalizeRapport(extractJsonObject(repaired));
-        } catch (_) {
-          console.warn("Réponse IA non parsable:", parseErr.message);
           rapportData = {
             resume_executif:
               "Le modèle a renvoyé un format invalide. Relancez la génération.",
@@ -282,17 +304,6 @@ Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après, sans markdo
             conclusion: "Aucun rapport exploitable généré.",
           };
         }
-      } else {
-        console.warn("Réponse IA non parsable (repair off):", parseErr.message);
-        rapportData = {
-          resume_executif:
-            "Le modèle a renvoyé un format invalide. Relancez la génération.",
-          analyse_parc: "",
-          tendances: [],
-          recommandations: [],
-          conclusion: "Aucun rapport exploitable généré.",
-        };
-      }
       }
     }
 
@@ -361,7 +372,7 @@ Réponds en JSON avec exactement :
   "estimation_duree": "..."
 }
 Réponse concise, sans texte hors JSON.`,
-  { forceJson: true },
+      { forceJson: true },
     );
 
     let diagnostic;
