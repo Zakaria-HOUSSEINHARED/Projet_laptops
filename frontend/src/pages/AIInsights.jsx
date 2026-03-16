@@ -11,6 +11,17 @@ export default function AIInsights() {
   const [diagLoad, setDiagLoad] = useState(false);
   const [activeTab, setActiveTab] = useState("rapport");
 
+  // Convertir les objets en strings de manière sûre
+  const toString = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") {
+      if (Array.isArray(val)) return val.join(", ");
+      return JSON.stringify(val);
+    }
+    return String(val);
+  };
+
   const genererRapport = async () => {
     if (!demande.trim()) return;
     setLoading(true);
@@ -78,7 +89,7 @@ export default function AIInsights() {
         🤖 AI Insights
       </h1>
       <p style={{ color: "#64748b", margin: "0.25rem 0 1.5rem" }}>
-        Fonctionnalités intelligentes propulsées par Claude API
+        Fonctionnalités intelligentes propulsées par Ollama (LLM local)
       </p>
 
       {/* Tabs */}
@@ -203,7 +214,7 @@ export default function AIInsights() {
                     fontWeight: 600,
                   }}
                 >
-                  Propulsé par Claude API
+                  Propulsé par Ollama (LLM Local)
                 </span>
               </div>
 
@@ -220,7 +231,7 @@ export default function AIInsights() {
                   📝 Résumé Exécutif
                 </h3>
                 <p style={{ margin: 0, color: "#1e293b", lineHeight: 1.7 }}>
-                  {rapport.resume_executif}
+                  {toString(rapport.resume_executif)}
                 </p>
               </div>
 
@@ -237,7 +248,7 @@ export default function AIInsights() {
                   🔍 Analyse du Parc
                 </h3>
                 <p style={{ margin: 0, color: "#1e293b", lineHeight: 1.7 }}>
-                  {rapport.analyse_parc}
+                  {toString(rapport.analyse_parc)}
                 </p>
               </div>
 
@@ -256,7 +267,7 @@ export default function AIInsights() {
                           lineHeight: 1.6,
                         }}
                       >
-                        {t}
+                        {toString(t)}
                       </li>
                     ))}
                   </ul>
@@ -293,12 +304,12 @@ export default function AIInsights() {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {r.priorite?.toUpperCase()}
+                        {toString(r.priorite)?.toUpperCase()}
                       </span>
                       <p
                         style={{ margin: 0, color: "#374151", lineHeight: 1.6 }}
                       >
-                        {r.action}
+                        {toString(r.action)}
                       </p>
                     </div>
                   ))}
@@ -317,7 +328,7 @@ export default function AIInsights() {
                     ✅ Conclusion
                   </h3>
                   <p style={{ margin: 0, color: "#374151", lineHeight: 1.7 }}>
-                    {rapport.conclusion}
+                    {toString(rapport.conclusion)}
                   </p>
                 </div>
               )}
@@ -427,7 +438,7 @@ export default function AIInsights() {
                     Cause Probable
                   </p>
                   <p style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}>
-                    {diagnostic.cause_probable}
+                    {toString(diagnostic.cause_probable)}
                   </p>
                 </div>
                 <div
@@ -461,7 +472,7 @@ export default function AIInsights() {
                         urgenceColor[diagnostic.niveau_urgence] || "#64748b",
                     }}
                   >
-                    {diagnostic.niveau_urgence?.toUpperCase()}
+                    {toString(diagnostic.niveau_urgence)?.toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -479,7 +490,7 @@ export default function AIInsights() {
                         lineHeight: 1.6,
                       }}
                     >
-                      {a}
+                      {toString(a)}
                     </li>
                   ))}
                 </ol>
@@ -495,7 +506,7 @@ export default function AIInsights() {
                 >
                   <p style={{ margin: 0, color: "#92400e" }}>
                     ⏱️ <strong>Durée estimée :</strong>{" "}
-                    {diagnostic.estimation_duree}
+                    {toString(diagnostic.estimation_duree)}
                   </p>
                 </div>
               )}
