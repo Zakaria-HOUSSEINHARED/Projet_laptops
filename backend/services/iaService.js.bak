@@ -29,7 +29,7 @@ const chatOllama = async (system, userMessage) => {
  * @returns {Promise<Object>} Données consolidées du parc
  */
 const collecterDonnees = async () => {
-  const [[totaux]] = await pool.query(`
+  const [[totaux]]      = await pool.query(`
     SELECT
       COUNT(*) AS total,
       SUM(statut='DISPONIBLE')    AS disponibles,
@@ -37,44 +37,15 @@ const collecterDonnees = async () => {
       SUM(statut='EN_REPARATION') AS en_maintenance
     FROM laptops
   `);
-  const [parMarque] = await pool.query('SELECT marque, COUNT(*) AS nb FROM laptops GROUP BY marque');
-  const [parEtat]   = await pool.query('SELECT etat, COUNT(*) AS nb FROM laptops GROUP BY etat');
-
-  // Détail complet de chaque laptop
-  const [laptopsDetail] = await pool.query(
-    'SELECT id_laptop, marque, modele, numero_serie, etat, statut FROM laptops ORDER BY etat'
+  const [parMarque]     = await pool.query('SELECT marque, COUNT(*) AS nb FROM laptops GROUP BY marque');
+  const [parEtat]       = await pool.query('SELECT etat, COUNT(*) AS nb FROM laptops GROUP BY etat');
+  const [maintenances]  = await pool.query("SELECT * FROM maintenances WHERE statut IN ('OUVERT','EN_COURS')");
+  const [alertes]       = await pool.query('SELECT * FROM alertes WHERE est_lue=FALSE');
+  const [mouvements30j] = await pool.query(
+    "SELECT type, COUNT(*) AS nb FROM mouvements WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY type"
   );
 
-  // Tickets de maintenance avec nom du laptop
-  const [maintenances] = await pool.query(`
-    SELECT m.id_maintenance, m.description, m.priorite, m.statut,
-           m.technicien, m.date_soumission,
-           l.marque, l.modele, l.numero_serie
-    FROM maintenances m
-    JOIN laptops l ON m.id_laptop = l.id_laptop
-    WHERE m.statut IN ('OUVERT','EN_COURS')
-    ORDER BY FIELD(m.priorite,'CRITIQUE','HAUTE','MOYENNE','FAIBLE')
-  `);
-
-  // Alertes actives avec nom du laptop
-  const [alertes] = await pool.query(`
-    SELECT a.id_alerte, a.type_alerte, a.message, a.date_creation,
-           l.marque, l.modele
-    FROM alertes a
-    JOIN laptops l ON a.id_laptop = l.id_laptop
-    WHERE a.est_lue = FALSE
-    ORDER BY a.date_creation DESC
-  `);
-
-  // Mouvements (table peut ne pas exister — on ignore l'erreur)
-  let mouvements30j = [];
-  try {
-    [mouvements30j] = await pool.query(
-      "SELECT type, COUNT(*) AS nb FROM mouvements WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY type"
-    );
-  } catch (_) { /* table mouvements absente */ }
-
-  return { totaux, parMarque, parEtat, laptopsDetail, maintenances, alertes, mouvements30j };
+  return { totaux, parMarque, parEtat, maintenances, alertes, mouvements30j };
 };
 
 /**
@@ -89,47 +60,40 @@ const genererRapportIA = async (req, res) => {
   try {
     const donnees = await collecterDonnees();
 
-    const total = donnees.totaux.total || 1; // évite division par zéro
     const prompt = `
-RÈGLE ABSOLUE : Utilise UNIQUEMENT les données ci-dessous. N'invente AUCUN fait, AUCUN chiffre, AUCUN nom qui n'est pas dans ces données.
+Voici les données actuelles du parc informatique LaptopStock Manager :
 
 📊 INVENTAIRE GLOBAL :
 - Total laptops : ${donnees.totaux.total}
-- Disponibles   : ${donnees.totaux.disponibles} (${Math.round(donnees.totaux.disponibles / total * 100)}%)
-- Attribués     : ${donnees.totaux.attribues} (${Math.round(donnees.totaux.attribues / total * 100)}%)
+- Disponibles   : ${donnees.totaux.disponibles} (${Math.round(donnees.totaux.disponibles / donnees.totaux.total * 100)}%)
+- Attribués     : ${donnees.totaux.attribues} (${Math.round(donnees.totaux.attribues / donnees.totaux.total * 100)}%)
 - En maintenance: ${donnees.totaux.en_maintenance}
 
 📦 RÉPARTITION PAR MARQUE :
-${donnees.parMarque.map(m => `- ${m.marque}: ${m.nb} unité(s)`).join('\n')}
+${donnees.parMarque.map(m => `- ${m.marque}: ${m.nb} unités`).join('\n')}
 
 🔧 ÉTAT DU PARC :
-${donnees.parEtat.map(e => `- ${e.etat}: ${e.nb} unité(s)`).join('\n')}
+${donnees.parEtat.map(e => `- ${e.etat}: ${e.nb} unités`).join('\n')}
 
-💻 LISTE COMPLÈTE DES LAPTOPS :
-${donnees.laptopsDetail.map(l => `- ${l.marque} ${l.modele} (SN: ${l.numero_serie}) — état: ${l.etat}, statut: ${l.statut}`).join('\n')}
-
-⚠️ TICKETS DE MAINTENANCE OUVERTS (${donnees.maintenances.length}) :
-${donnees.maintenances.length === 0 ? '- Aucun ticket ouvert' : donnees.maintenances.map(m => `- [${m.priorite}] ${m.marque} ${m.modele} (${m.numero_serie}): "${m.description}" | Statut: ${m.statut} | Technicien: ${m.technicien || 'Non assigné'}`).join('\n')}
-
-🔔 ALERTES ACTIVES (${donnees.alertes.length}) :
-${donnees.alertes.length === 0 ? '- Aucune alerte active' : donnees.alertes.map(a => `- [${a.type_alerte}] ${a.marque} ${a.modele}: "${a.message}"`).join('\n')}
+⚠️ TICKETS OUVERTS : ${donnees.maintenances.length}
+🔔 ALERTES NON LUES : ${donnees.alertes.length}
 
 📈 MOUVEMENTS 30 DERNIERS JOURS :
-${donnees.mouvements30j.length === 0 ? '- Aucun mouvement enregistré' : donnees.mouvements30j.map(m => `- ${m.type}: ${m.nb} opérations`).join('\n')}
+${donnees.mouvements30j.map(m => `- ${m.type}: ${m.nb} opérations`).join('\n')}
 
-Demande : "${demande || 'Génère un rapport mensuel complet pour la direction'}"
+Demande de l'administrateur : "${demande || 'Génère un rapport mensuel complet pour la direction'}"
 
-Génère un rapport professionnel en JSON avec EXACTEMENT ces champs (toutes les valeurs en français, chaînes de texte uniquement — pas d'objets imbriqués dans les champs texte) :
+Génère un rapport professionnel structuré en JSON avec exactement ces champs :
 {
-  "resume_executif": "texte court de 2-3 phrases résumant l'état du parc",
-  "analyse_parc": "analyse détaillée en texte basée UNIQUEMENT sur les laptops listés ci-dessus",
-  "tendances": ["tendance 1 basée sur les données réelles", "tendance 2"],
+  "resume_executif": "...",
+  "analyse_parc": "...",
+  "tendances": ["...", "..."],
   "recommandations": [
-    { "priorite": "haute", "action": "action concrète basée sur les tickets/alertes réels" }
+    { "priorite": "critique|haute|moyenne", "action": "..." }
   ],
-  "conclusion": "conclusion courte"
+  "conclusion": "..."
 }
-Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après, sans markdown.
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.
     `.trim();
 
     let reponse = null;
