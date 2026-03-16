@@ -13,10 +13,10 @@ export default function AIInsights() {
 
   // Convertir les objets en strings de manière sûre
   const toString = (val) => {
-    if (!val) return '';
-    if (typeof val === 'string') return val;
-    if (typeof val === 'object') {
-      if (Array.isArray(val)) return val.join(', ');
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") {
+      if (Array.isArray(val)) return val.join(", ");
       return JSON.stringify(val);
     }
     return String(val);
