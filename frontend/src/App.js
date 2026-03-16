@@ -5,6 +5,9 @@ import Login     from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Laptops   from './pages/Laptops';
 import AIInsights from './pages/AIInsights';
+import LaptopView from './pages/LaptopView';
+import LaptopEdit from './pages/LaptopEdit';
+import StockMovements from './pages/StockMovements';
 
 // Pages simples inline pour les autres sections
 const SimplePage = ({ title, icon }) => (
@@ -29,8 +32,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/"             element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/laptops"      element={<PrivateRoute><Laptops /></PrivateRoute>} />
+          <Route path="/laptops/:id" element={<PrivateRoute><LaptopView /></PrivateRoute>} />
+          <Route path="/laptops/:id/edit" element={<PrivateRoute><LaptopEdit /></PrivateRoute>} />
           <Route path="/ia"           element={<PrivateRoute><AIInsights /></PrivateRoute>} />
-          <Route path="/mouvements"   element={<PrivateRoute><SimplePage title="Mouvements de Stock" icon="📦" /></PrivateRoute>} />
+          <Route path="/mouvements"   element={<PrivateRoute><StockMovements /></PrivateRoute>} />
           <Route path="/attributions" element={<PrivateRoute><SimplePage title="Attributions" icon="👤" /></PrivateRoute>} />
           <Route path="/maintenances" element={<PrivateRoute><SimplePage title="Maintenances" icon="🔧" /></PrivateRoute>} />
           <Route path="/alertes"      element={<PrivateRoute><SimplePage title="Alertes" icon="🔔" /></PrivateRoute>} />
