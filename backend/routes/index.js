@@ -11,6 +11,7 @@ const {
   deleteLaptop,
   getStats,
 } = require("../controllers/laptopController");
+const { getAllUtilisateurs } = require("../controllers/utilisateurController");
 const {
   getAllAttributions,
   createAttribution,
@@ -35,6 +36,9 @@ const router = express.Router();
 // ── Auth ──────────────────────────────────────────────────
 router.post("/auth/login", login);
 router.get("/auth/me", authMiddleware, getMe);
+
+// ── Utilisateurs ──────────────────────────────────────────
+router.get("/utilisateurs", authMiddleware, getAllUtilisateurs);
 
 // ── Laptops ───────────────────────────────────────────────
 router.get("/laptops/stats", authMiddleware, getStats);
