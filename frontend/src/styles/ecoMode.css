@@ -1,0 +1,195 @@
+/* 🌱 Mode Éco-Conception */
+
+/* Désactiver toutes les animations */
+.eco-mode * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Supprimer les dégradés et les effets */
+.eco-mode {
+  --shadow: none;
+  --blur: none;
+}
+
+/* Polices système (plus légères que Google Fonts) */
+.eco-mode,
+.eco-mode * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif !important;
+}
+
+/* Cards : style plus sobre */
+.eco-mode [style*="boxShadow"],
+.eco-mode [style*="shadow"] {
+  box-shadow: none !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Supprimer les images/avatars en mode éco */
+.eco-mode img:not([alt*="laptop"]):not([alt*="Laptop"]) {
+  display: none !important;
+}
+
+/* Réduire la saturation des couleurs */
+.eco-mode {
+  filter: saturate(0.85);
+}
+
+/* Texte plus dense */
+.eco-mode {
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+
+/* Tableaux minimalistes */
+.eco-mode table {
+  border-collapse: collapse;
+  border: 1px solid #d1d5db;
+  background: #fafafa;
+}
+
+.eco-mode th {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.eco-mode td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+}
+
+/* Pas de backdrop blur */
+.eco-mode [style*="backdrop"] {
+  backdrop-filter: none !important;
+  background: rgba(0,0,0,0.5) !important;
+}
+
+/* Formulaires minimalistes */
+.eco-mode input,
+.eco-mode textarea,
+.eco-mode select {
+  border: 1px solid #d1d5db !important;
+  background: #f9fafb !important;
+  color: #1f2937 !important;
+}
+
+.eco-mode input:focus,
+.eco-mode textarea:focus,
+.eco-mode select:focus {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px !important;
+}
+
+/* Modales : pas de blur de fond */
+.eco-mode [style*="position: fixed"][style*="backgroundColor"] {
+  background: rgba(0,0,0,0.5) !important;
+  backdrop-filter: none !important;
+}
+
+/* SVG et graphiques moins saturés */
+.eco-mode svg {
+  opacity: 0.85;
+}
+
+/* Dividers plus subtiles */
+.eco-mode [style*="border"]:not(button):not(input):not(textarea) {
+  border-color: #e5e7eb !important;
+}
+
+/* Couleurs neutres */
+.eco-mode [style*="color: #1e3a5f"] {
+  color: #374151 !important;
+}
+
+.eco-mode [style*="color: #64748b"] {
+  color: #6b7280 !important;
+}
+
+/* Boutons : design plat */
+.eco-mode button {
+  border: 1px solid #d1d5db;
+  background: #f3f4f6 !important;
+  color: #1f2937 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.eco-mode button:hover {
+  background: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+/* Navigation : plus claire */
+.eco-mode aside {
+  background: #f3f4f6 !important;
+  color: #1f2937 !important;
+  border-right: 1px solid #d1d5db;
+}
+
+.eco-mode aside a {
+  color: #374151 !important;
+  background: transparent !important;
+}
+
+.eco-mode aside a:hover,
+.eco-mode aside a.active {
+  background: #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+/* Badges plus discrets */
+.eco-mode [style*="borderRadius: 20px"],
+.eco-mode [style*="padding: 0.25rem"] {
+  background: #f0f0f0 !important;
+  color: #666 !important;
+}
+
+/* Réduire la taille des polices légèrement */
+.eco-mode h1,
+.eco-mode h2,
+.eco-mode h3 {
+  letter-spacing: normal;
+}
+
+/* Alert boxes plus sobres */
+.eco-mode [style*="background: #fecaca"],
+.eco-mode [style*="backgroundColor: #fecaca"] {
+  background: #fed7d7 !important;
+  border-color: #fc8181 !important;
+}
+
+/* Liens plus visibles */
+.eco-mode a {
+  color: #2563eb !important;
+  text-decoration: underline;
+}
+
+.eco-mode a:hover {
+  color: #1d4ed8 !important;
+}
+
+/* Grilles et layouts */
+.eco-mode > div[style*="display: grid"],
+.eco-mode > div[style*="display: flex"] {
+  gap: 0.5rem !important;
+}
+
+/* Éviter les micro-animations */
+.eco-mode [style*="animation"] {
+  animation: none !important;
+}
+
+/* Texte gris standard */
+.eco-mode [style*="color: #94a3b8"] {
+  color: #9ca3af !important;
+}
+
+/* Désactiver brillance des éléments */
+.eco-mode [style*="filter: brightness"],
+.eco-mode [style*="text-shadow"] {
+  filter: none !important;
+  text-shadow: none !important;
+}

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 require("dotenv").config();
 
 const { testConnection } = require("./config/db");
@@ -10,30 +11,51 @@ const PORT = process.env.PORT || 5000;
 
 // ── Middlewares ───────────────────────────────────────────
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000" }));
+
+// 📦 Compression: gzip pour -50% taille réponses (Lighthouse +5pts)
+app.use(compression({
+  level: 6,                    // Level 6 = optimal balance speed/ratio
+  threshold: 1024,            // Only compress if > 1KB
+  filter: (req, res) => {
+    // Compress JSON, HTML, but not images/videos
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🌱 Middleware Cache pour éco-conception (542 Kio économies!)
+// 🌱 Middleware Cache pour éco-conception (542 Kio économies per session!)
 app.use((req, res, next) => {
   // Stats: cache 10 min (change pas souvent)
   if (
     req.path.includes("/laptops/stats") ||
     req.path.includes("/ia/alertes-stock")
   ) {
-    res.set("Cache-Control", "public, max-age=600"); // 10 min
+    res.set("Cache-Control", "public, max-age=600, s-maxage=1200");
   }
-  // Rapports: immutable (never change comme approuvés)
+  // Rapports: année complète (immutable = never revalidate)
   else if (req.path.includes("/ia/rapports")) {
-    res.set("Cache-Control", "public, immutable, max-age=31536000"); // 1 year
+    res.set("Cache-Control", "public, immutable, max-age=31536000");
   }
-  // Données dynamiques: no cache mais peut révalider
+  // Authentification: no cache (sécurité)
+  else if (req.path.includes("/auth")) {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  }
+  // Données dynamiques: courte validation
   else if (req.method === "GET") {
-    res.set("Cache-Control", "public, max-age=300"); // 5 min par défaut
+    res.set("Cache-Control", "public, max-age=300, must-revalidate");
   }
-  // POST, PUT, DELETE: no-store, no-cache
+  // Mutations: never cache
   else {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   }
+  
+  // ℹ️ ETag pour meilleure revalidation (Lighthouse: Efficient cache policy)
+  res.set("ETag", `"${Date.now()}"`);
   next();
 });
 

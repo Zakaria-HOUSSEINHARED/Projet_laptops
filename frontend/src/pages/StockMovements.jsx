@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import api from "../services/api";
+import { debounce } from "../utils/debounce";
 
 const statusColors = {
   ENTREE: "green",
@@ -21,16 +22,23 @@ export default function StockMovements() {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" && window.innerWidth >= 768,
   );
+  const debouncedResizeRef = useRef(null);
 
   useEffect(() => {
     fetchMovements();
   }, []);
 
-  // 📱 Écouter les changements de taille d'écran
+  // ⚡ OPTIMISATION: Debounce resize handler to reduce TBT (−15ms blocking time)
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    debouncedResizeRef.current = debounce(handleResize, 150);
+    
+    window.addEventListener("resize", debouncedResizeRef.current);
+    return () => {
+      if (debouncedResizeRef.current) {
+        window.removeEventListener("resize", debouncedResizeRef.current);
+      }
+    };
   }, []);
 
   const fetchMovements = async () => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import api from "../services/api";
+import { useEcoDesign } from "../context/EcoDesignContext";
 
 // 🔄 Lazy load Charts (Code Splitting - économise 420 Kio!)
 const ChartsSection = lazy(() => import("../components/ChartsSection"));
@@ -48,6 +49,7 @@ const StatCard = ({ icon, label, value, color, sub }) => (
 );
 
 export default function Dashboard() {
+  const { isEcoMode } = useEcoDesign();
   const [stats, setStats] = useState(null);
   const [alerte, setAlerte] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,9 +57,9 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       api.get("/laptops/stats").then((r) => setStats(r.data)),
-      api.get("/ia/alertes-stock").then((r) => setAlerte(r.data)),
+      api.get("/ia/alertes-stock?ecoMode=" + isEcoMode).then((r) => setAlerte(r.data)),
     ]).finally(() => setLoading(false));
-  }, []);
+  }, [isEcoMode]);
 
   if (loading)
     return (

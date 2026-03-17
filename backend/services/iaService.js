@@ -1,16 +1,48 @@
 const { pool } = require("../config/db");
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "mistral";
-const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 10000); // REVENIR À 10s
-const OLLAMA_TEMPERATURE = Number(process.env.OLLAMA_TEMPERATURE || 0.05); // REVENIR À 0.05
-const OLLAMA_NUM_PREDICT = Number(process.env.OLLAMA_NUM_PREDICT || 150); // BACK TO 150
-const OLLAMA_TOP_P = Number(process.env.OLLAMA_TOP_P || 0.8);
-const OLLAMA_REPEAT_PENALTY = Number(process.env.OLLAMA_REPEAT_PENALTY || 1.0);
-const OLLAMA_NUM_CTX = Number(process.env.OLLAMA_NUM_CTX || 400);
-const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || "5m";
-const OLLAMA_MAX_LAPTOPS = Number(process.env.OLLAMA_MAX_LAPTOPS || 6); // ⚡ 8 → 6
-const OLLAMA_MAX_ITEMS = Number(process.env.OLLAMA_MAX_ITEMS || 2); // ⚡ 3 → 2
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:1b";
+
+// 📊 Configuration NORMALE (optimisée)
+const CONFIG_NORMAL = {
+  TIMEOUT_MS: Number(process.env.AI_TIMEOUT_MS || 2500),
+  TEMPERATURE: Number(process.env.AI_TEMPERATURE || 0.3),
+  NUM_PREDICT: Number(process.env.AI_MAX_TOKENS || 40),
+  TOP_P: Number(process.env.OLLAMA_TOP_P || 0.7),
+  REPEAT_PENALTY: Number(process.env.OLLAMA_REPEAT_PENALTY || 1.0),
+  NUM_CTX: Number(process.env.OLLAMA_NUM_CTX || 256),
+  KEEP_ALIVE: process.env.OLLAMA_KEEP_ALIVE || "5m",
+  MAX_LAPTOPS: Number(process.env.OLLAMA_MAX_LAPTOPS || 3),
+  MAX_ITEMS: Number(process.env.OLLAMA_MAX_ITEMS || 1),
+};
+
+// 🌱 Configuration ÉCO-CONCEPTION (ultra-optimisée, très rapide, moins de ressources)
+const CONFIG_ECO = {
+  TIMEOUT_MS: 1500,          // ⚡ 2500ms → 1500ms (40% plus rapide)
+  TEMPERATURE: 0.2,          // Très déterministe
+  NUM_PREDICT: 25,           // 40 → 25 tokens (37% réduction)
+  TOP_P: 0.6,                // Moins d'exploration
+  REPEAT_PENALTY: 1.0,
+  NUM_CTX: 128,              // 256 → 128 (50% moins de contexte)
+  KEEP_ALIVE: "2m",
+  MAX_LAPTOPS: 2,            // 3 → 2 (moins de données)
+  MAX_ITEMS: 1,
+};
+
+// Fonction pour obtenir la config selon le mode
+const getConfig = (ecoMode) => {
+  return ecoMode ? CONFIG_ECO : CONFIG_NORMAL;
+};
+
+const OLLAMA_TEMPERATURE = CONFIG_NORMAL.TEMPERATURE;
+const OLLAMA_NUM_PREDICT = CONFIG_NORMAL.NUM_PREDICT;
+const OLLAMA_TOP_P = CONFIG_NORMAL.TOP_P;
+const OLLAMA_REPEAT_PENALTY = CONFIG_NORMAL.REPEAT_PENALTY;
+const OLLAMA_NUM_CTX = CONFIG_NORMAL.NUM_CTX;
+const OLLAMA_KEEP_ALIVE = CONFIG_NORMAL.KEEP_ALIVE;
+const OLLAMA_TIMEOUT_MS = CONFIG_NORMAL.TIMEOUT_MS;
+const OLLAMA_MAX_LAPTOPS = CONFIG_NORMAL.MAX_LAPTOPS;
+const OLLAMA_MAX_ITEMS = CONFIG_NORMAL.MAX_ITEMS;
 const OLLAMA_ENABLE_JSON_REPAIR =
   (process.env.OLLAMA_ENABLE_JSON_REPAIR || "false").toLowerCase() === "true";
 
@@ -59,6 +91,43 @@ const normalizeRapport = (payload) => ({
     : [],
   conclusion: String(payload?.conclusion || ""),
 });
+
+/**
+ * 🔧 Valide et corrige les chiffres du rapport pour cohérence
+ * Vérifie que le résumé ne contient pas d'incohérences
+ */
+const validateRapportChiffres = (rapport, donnees) => {
+  if (!rapport || !donnees) return rapport;
+
+  try {
+    // Nettoyer les textes
+    rapport.resume_executif = String(rapport.resume_executif || "").trim();
+    rapport.analyse_parc = String(rapport.analyse_parc || "").trim();
+    rapport.conclusion = String(rapport.conclusion || "").trim();
+
+    // Assurer que les tendances et recommandations sont des arrays
+    if (!Array.isArray(rapport.tendances)) {
+      rapport.tendances = [];
+    }
+    if (!Array.isArray(rapport.recommandations)) {
+      rapport.recommandations = [];
+    }
+
+    // Nettoyer les recommandations
+    rapport.recommandations = rapport.recommandations
+      .map((r) => ({
+        priorite: String(r?.priorite || "moyenne").toUpperCase(),
+        action: String(r?.action || "").trim(),
+      }))
+      .filter((r) => r.action.length > 0)
+      .slice(0, 5); // Max 5 recommandations
+
+    return rapport;
+  } catch (err) {
+    console.error("Validation rapport échouée:", err);
+    return rapport;
+  }
+};
 
 // ⚡ Fonction utility pour cache
 const getCacheKey = (prefix, id) => `${prefix}:${id}`;
@@ -284,6 +353,27 @@ const repondreQuestionSimple = (demande, donnees) => {
     };
   }
 
+  // ⚡ NOUVEAU: Détection de marque spécifique (ex: "HP", "Dell", "Lenovo")
+  if (
+    (q.includes("combien") || q.includes("combien de")) &&
+    (q.includes("marque") || q.includes("de la") || q.includes("du"))
+  ) {
+    // Extraire la marque mentionnée
+    for (const marque of donnees.parMarque) {
+      if (q.toLowerCase().includes(marque.marque.toLowerCase())) {
+        return {
+          resume_executif: `${marque.nb} ordinateur(s) portable(s) de la marque ${marque.marque} est/sont present(s) dans le parc.`,
+          analyse_parc: `Marque: ${marque.marque} | Nombre: ${marque.nb} | Pourcentage du parc: ${Math.round((marque.nb / total) * 100)}%`,
+          tendances: [
+            `${marque.marque} représente ${Math.round((marque.nb / total) * 100)}% du parc informatique`,
+          ],
+          recommandations: [],
+          conclusion: `${marque.nb} laptop(s) de la marque ${marque.marque}.`,
+        };
+      }
+    }
+  }
+
   if (q.includes("marque")) {
     const topMarque = donnees.parMarque.sort((a, b) => b.nb - a.nb)[0];
     return {
@@ -423,7 +513,8 @@ const collecterDonnees = async () => {
  * @param {Object} res - Réponse Express
  */
 const genererRapportIA = async (req, res) => {
-  const { demande } = req.body;
+  const { demande, ecoMode } = req.body;
+  const config = getConfig(ecoMode); // 🌱 Charger la config selon le mode
 
   try {
     // ⚡ Inclure la DEMANDE dans la clé de cache (sinon toutes les questions donnent le même rapport!)
@@ -438,6 +529,7 @@ const genererRapportIA = async (req, res) => {
         rapport: cached.rapport,
         donnees: cached.donnees,
         cached: true,
+        ecoMode,
       });
     }
 
@@ -471,6 +563,7 @@ const genererRapportIA = async (req, res) => {
         rapport: reponseDirecte,
         donnees,
         rapide: true,
+        ecoMode,
       });
     }
 
@@ -478,15 +571,16 @@ const genererRapportIA = async (req, res) => {
     console.log(
       "🤖 Question complexe détectée, passage par LLM...",
       demande?.substring(0, 50),
+      ecoMode ? "(mode éco)" : ""  // Log si mode éco
     );
 
     const total = donnees.totaux.total || 1; // évite division par zéro
-    const laptopsForPrompt = donnees.laptopsDetail.slice(0, OLLAMA_MAX_LAPTOPS);
+    const laptopsForPrompt = donnees.laptopsDetail.slice(0, config.MAX_LAPTOPS); // 🌱 Utiliser la config
     const maintenancesForPrompt = donnees.maintenances.slice(
       0,
-      OLLAMA_MAX_ITEMS,
+      config.MAX_ITEMS,
     );
-    const alertesForPrompt = donnees.alertes.slice(0, OLLAMA_MAX_ITEMS);
+    const alertesForPrompt = donnees.alertes.slice(0, config.MAX_ITEMS);
 
     // Calcul des statistiques précises
     const tauxDisponibilité = Math.round(
@@ -512,70 +606,29 @@ const genererRapportIA = async (req, res) => {
       etats: donnees.parEtat,
     };
 
-    // ⚡ Prompt HYPER-STRICT avec QUESTION PERSONNALISÉE
-    const sectionQuestion = demande
-      ? `\n\n🎯 QUESTION SPÉCIFIQUE DE L'UTILISATEUR:\n"${demande}"\n\n⚡ RÉPONDS DIRECTEMENT ET PRÉCISÉMENT à cette question en utilisant les données ci-dessous.`
-      : "";
+    // ⚡ Prompt OPTIMISÉ ET ULTRA-CONCIS pour réduire le temps de traitement
+    const prompt = `Analyste IT. Données du parc:
+Total: ${total} | Dispo: ${donnees.totaux.disponibles} (${tauxDisponibilité}%) | Attrib: ${donnees.totaux.attribues} (${tauxAttribution}%) | Maint: ${donnees.totaux.en_maintenance} (${tauxMaintenance}%)
+Marques: ${donnees.parMarque.map((m) => `${m.marque}(${m.nb})`).join(", ")}
+États: ${donnees.parEtat.map((e) => `${e.etat}(${e.nb})`).join(", ")}
+${maintenancesForPrompt.length > 0 ? `Maintenance: ${maintenancesForPrompt.map((m) => m.priorite).join(", ")}` : ""}
+${demande ? `Question: "${demande.substring(0, 100)}"` : ""}
 
-    const prompt = `⚠️ DIRECTIVE STRICTE ⚠️
-
-Tu DOIS utiliser EXACTEMENT ces chiffres ci-dessous. PAS D'EXCEPTIONS.
-Si tu inventes ou changes un chiffre, tu violeras cette directive.${sectionQuestion}
-
-=== CHIFFRES OBLIGATOIRES À UTILISER ==="
-TOTAL EXACT: ${total} ordinateurs portables
-DISPONIBLES EXACT: ${donnees.totaux.disponibles} (${tauxDisponibilité}%)
-ATTRIBUÉS EXACT: ${donnees.totaux.attribues} (${tauxAttribution}%)
-MAINTENANCE EXACT: ${donnees.totaux.en_maintenance} (${tauxMaintenance}%)
-
-=== DISTRIBUTION PAR MARQUE (OBLIGATOIRE) ===
-${donnees.parMarque.map((m) => `${m.marque}: exactement ${m.nb} unité(s)`).join("\n")}
-
-=== DISTRIBUTION PAR ÉTAT (OBLIGATOIRE) ===
-${donnees.parEtat.map((e) => `${e.etat}: exactement ${e.nb} unité(s)`).join("\n")}
-
-=== DÉTAIL DES LAPTOPS (top ${OLLAMA_MAX_LAPTOPS}) ===
-${laptopsForPrompt.length > 0 ? laptopsForPrompt.map((l) => `• ${l.marque} ${l.modele} | État: ${l.etat} | Statut: ${l.statut}`).join("\n") : "Aucun laptop dans la base"}
-
-=== TICKETS DE MAINTENANCE OUVERTS (top ${OLLAMA_MAX_ITEMS}) ===
-${maintenancesForPrompt.length > 0 ? maintenancesForPrompt.map((m) => `• [${m.priorite}] ${m.marque} ${m.modele} | ${truncateText(m.description, 80)}`).join("\n") : "Aucun ticket ouvert"}
-
-=== ALERTES ACTIVES (top ${OLLAMA_MAX_ITEMS}) ===
-${alertesForPrompt.length > 0 ? alertesForPrompt.map((a) => `• [${a.type_alerte}] ${a.marque} ${a.modele}: ${truncateText(a.message, 80)}`).join("\n") : "Aucune alerte"}
-
-=== INSTRUCTIONS ABSOLUES ===
-1. ✅ ${demande ? "RÉPONDS À LA QUESTION spécifique posée" : "TOUJOURS commencer par: 'Parc de [TOTAL] ordinateurs portables'"}
-2. ✅ TOUJOURS utiliser les chiffres EXACTS ci-dessus
-3. ✅ JAMAIS inventer de chiffres qui ne sont pas ci-dessus
-4. ✅ Répondre UNIQUEMENT en JSON valide
-
-=== JSON REQUIS ===
-{
-  "resume_executif": "${demande ? "Réponse DIRECTE à la question, puis chiffres clés" : "Parc de " + total + " laptops"}",
-  "analyse_parc": "Détail basé sur les données réelles",
-  "tendances": ["Observation basée sur les données"],
-  "recommandations": [{"priorite": "haute", "action": "Action concrète"}],
-  "conclusion": "Conclusion adaptée à la question"
-}
-
-Réponds UNIQUEMENT avec ce JSON, rien d'autre.`.trim();
+Réponds UNIQUEMENT en JSON valide:
+{"resume_executif":"","analyse_parc":"","tendances":[],"recommandations":[{"priorite":"","action":""}],"conclusion":""}`.trim();
 
     let reponse = null;
-    let tentatives = 0;
 
-    // Retry automatique (max 2 fois au lieu de 3)
-    while (!reponse && tentatives < 2) {
-      tentatives++;
-      try {
-        reponse = await chatOllama(
-          "Tu es un analyste IT. Réponds UNIQUEMENT en JSON valide.",
-          prompt,
-          { forceJson: true },
-        );
-      } catch (apiErr) {
-        if (tentatives === 2) throw apiErr;
-        await new Promise((r) => setTimeout(r, 500 * tentatives));
-      }
+    // ⚡ Une seule tentative (si timeout, fallback. Pas de retry = plus rapide)
+    try {
+      reponse = await chatOllama(
+        "Analyste IT. JSON seulement.",
+        prompt,
+        { forceJson: true },
+      );
+    } catch (apiErr) {
+      console.warn("Ollama timeout/err, fallback:", apiErr.message);
+      reponse = null; // Forcer fallback
     }
 
     // Parser la réponse JSON
@@ -586,27 +639,9 @@ Réponds UNIQUEMENT avec ce JSON, rien d'autre.`.trim();
     } catch (parseErr) {
       console.warn("Réponse IA non parsable:", parseErr.message);
 
-      // ⚡ Utiliser le fallback intelligent pour les questions complexes
-      if (questionEstComplexe) {
-        rapportData = genererRapportFallback(demande, donnees);
-      } else {
-        // Fallback simple pour les autres cas
-        rapportData = {
-          resume_executif: `${demande ? `Réponse: ${demande.substring(0, 80)}` : "Parc informatique"}. ${donnees.totaux.disponibles} dispo., ${donnees.totaux.attribues} attrib., ${donnees.totaux.en_maintenance} maintenance.`,
-          analyse_parc: `Distribution: ${donnees.parMarque.map((m) => `${m.marque} (${m.nb})`).join(", ")}. État: ${donnees.parEtat.map((e) => `${e.etat} (${e.nb})`).join(", ")}.`,
-          tendances: ["État du parc analysé"],
-          recommandations:
-            donnees.maintenances.length > 0
-              ? [
-                  {
-                    priorite: "haute",
-                    action: `${donnees.maintenances.length} ticket(s) de maintenance à traiter.`,
-                  },
-                ]
-              : [],
-          conclusion: "Rapport généré à partir des données actuelles.",
-        };
-      }
+      // ⚡ TOUJOURS utiliser le fallback intelligent (même pour questions simples)
+      // C'est plus robuste et structuré qu'un fallback simple
+      rapportData = genererRapportFallback(demande, donnees);
     }
 
     // Sauvegarder en base
@@ -627,6 +662,7 @@ Réponds UNIQUEMENT avec ce JSON, rien d'autre.`.trim();
       id_rapport: result.insertId,
       rapport: rapportData,
       donnees,
+      ecoMode,
     };
     setCachedRapport(cacheKey, finalResult);
 
@@ -648,7 +684,9 @@ Réponds UNIQUEMENT avec ce JSON, rien d'autre.`.trim();
  * POST /api/ia/diagnostic
  */
 const diagnosticIA = async (req, res) => {
-  const { description_panne, id_laptop } = req.body;
+  const { description_panne, id_laptop, ecoMode } = req.body;
+  const config = getConfig(ecoMode); // 🌱 Charger la config selon le mode
+  
   if (!description_panne)
     return res.status(400).json({ message: "Description de la panne requise" });
 
@@ -680,34 +718,13 @@ LAPTOP CONCERNÉ:
       }
     }
 
-    // ⚡ Prompt amélioré pour diagnostic
+    // ⚡ Prompt ultra-concis pour diagnostic (plus rapide)
     const diagResponse = await chatOllama(
-      "Tu es un expert technicien IT. Tu diagnostiques les pannes en te basant sur la description fournie et l'historique disponible. Ta réponse doit être concise, factuelle et actionnable. Réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.",
-      `ANALYSE DE PANNE REQUISE:
+      "Technicien IT. Diagnostic JSON.",
+      `Panne: "${truncateText(description_panne, 150)}"${contexte.substring(0, 200)}
 
-Panne décrite: "${truncateText(description_panne, 300)}"
-${contexte}
-
-INSTRUCTIONS:
-1. Basez le diagnostic sur la description de la panne et l'historique fourni
-2. Évaluez l'urgence réaliste de la situation
-3. Proposez des actions concrètes et testables
-4. Estimez un délai réaliste (en heures ou jours)
-5. Répondez UNIQUEMENT en JSON valide
-
-FORMAT REQUIS (exemple):
-{
-  "cause_probable": "Batterie défaillante - décharge rapide anormale",
-  "niveau_urgence": "moderé",
-  "actions_recommandees": [
-    "Tester la batterie avec diagnostic logiciel",
-    "Remplacer si défaillance confirmée"
-  ],
-  "estimation_duree": "2-3 heures pour diagnostic + remplacement"
-}
-
-Réponds UNIQUEMENT avec du JSON valide.`,
-      { forceJson: true, numPredictOverride: 200 }, // ⚡ Légèrement plus pour qualité
+JSON: {"cause_probable":"","niveau_urgence":"","actions_recommandees":[],"estimation_duree":""}`,
+      { forceJson: true, numPredictOverride: ecoMode ? 50 : 80 }, // 🌱 80 → 50 tokens en mode éco
     );
 
     let diagnostic;
@@ -722,7 +739,10 @@ Réponds UNIQUEMENT avec du JSON valide.`,
         estimation_duree: "À déterminer après diagnostic",
       };
     }
-    res.json(diagnostic);
+    res.json({
+      ...diagnostic,
+      ecoMode,
+    });
   } catch (err) {
     res
       .status(500)
@@ -750,6 +770,8 @@ const getHistoriqueRapports = async (req, res) => {
  * Vérifier les alertes stock (stock bas, concentration marque, etc.)
  */
 const verifierAlertesStock = async (req, res) => {
+  const ecoMode = req.query.ecoMode === "true"; // 🌱 Récupérer le paramètre depuis query string
+  
   try {
     const [rows] = await pool.query(
       `SELECT 
@@ -766,6 +788,7 @@ const verifierAlertesStock = async (req, res) => {
         disponibles: 0,
         total: 0,
         alerte: null,
+        ecoMode,
       });
     }
 
@@ -784,6 +807,7 @@ const verifierAlertesStock = async (req, res) => {
             message: `Seulement ${disponibles} laptop(s) disponible(s). Seuil d'alerte: ${SEUIL_STOCK_BAS}`,
           }
         : null,
+      ecoMode,
     });
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });

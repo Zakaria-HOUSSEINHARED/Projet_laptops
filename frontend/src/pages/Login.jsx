@@ -58,7 +58,7 @@ export default function Login() {
           </h1>
           <p
             style={{
-              color: "#64748b",
+              color: "#475569",
               marginTop: "0.5rem",
               fontSize: "0.9rem",
             }}
@@ -85,17 +85,19 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: "1rem" }}>
             <label
+              htmlFor="email-input"
               style={{
                 display: "block",
                 marginBottom: "0.4rem",
                 fontWeight: 600,
-                color: "#374151",
+                color: "#1f2937",
                 fontSize: "0.85rem",
               }}
             >
               Email
             </label>
             <input
+              id="email-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -114,17 +116,19 @@ export default function Login() {
 
           <div style={{ marginBottom: "1.5rem" }}>
             <label
+              htmlFor="password-input"
               style={{
                 display: "block",
                 marginBottom: "0.4rem",
                 fontWeight: 600,
-                color: "#374151",
+                color: "#1f2937",
                 fontSize: "0.85rem",
               }}
             >
               Mot de passe
             </label>
             <input
+              id="password-input"
               type="password"
               value={mot_de_passe}
               onChange={(e) => setPassword(e.target.value)}

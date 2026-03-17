@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useEcoDesign } from "../../context/EcoDesignContext";
+import "../../styles/ecoMode.css";
 
 const navItems = [
   { path: "/", icon: "📊", label: "Dashboard" },
@@ -14,6 +16,7 @@ const navItems = [
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
+  const { isEcoMode, toggleEcoMode } = useEcoDesign();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -39,11 +42,12 @@ export default function Layout({ children }) {
 
   return (
     <div
+      className={isEcoMode ? "eco-mode" : ""}
       style={{
         display: "flex",
         minHeight: "100vh",
         fontFamily: "Inter, sans-serif",
-        background: "#f8fafc",
+        background: isEcoMode ? "#fafafa" : "#f8fafc",
       }}
     >
       {/* 📱 Mobile menu toggle */}
@@ -72,8 +76,8 @@ export default function Layout({ children }) {
         style={{
           width: isDesktop ? (collapsed ? "64px" : "240px") : "240px",
           transition: "width 0.2s",
-          background: "#1e3a5f",
-          color: "white",
+          background: isEcoMode ? "#f3f4f6" : "#1e3a5f",
+          color: isEcoMode ? "#1f2937" : "white",
           display: "flex",
           flexDirection: "column",
           position: isDesktop ? "fixed" : "fixed",
@@ -87,7 +91,7 @@ export default function Layout({ children }) {
         <div
           style={{
             padding: "1.5rem 1rem",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            borderBottom: isEcoMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
             display: "flex",
             alignItems: "center",
             gap: "0.75rem",
@@ -106,7 +110,7 @@ export default function Layout({ children }) {
                 marginLeft: "auto",
                 background: "none",
                 border: "none",
-                color: "white",
+                color: isEcoMode ? "#374151" : "white",
                 cursor: "pointer",
                 fontSize: "1.2rem",
               }}
@@ -121,7 +125,7 @@ export default function Layout({ children }) {
                 marginLeft: "auto",
                 background: "none",
                 border: "none",
-                color: "white",
+                color: isEcoMode ? "#374151" : "white",
                 cursor: "pointer",
                 fontSize: "1.2rem",
               }}
@@ -146,12 +150,14 @@ export default function Layout({ children }) {
                 borderRadius: "8px",
                 marginBottom: "0.25rem",
                 textDecoration: "none",
-                color: "white",
+                color: isEcoMode ? "#374151" : "white",
                 fontSize: "0.9rem",
                 fontWeight: 500,
                 background:
                   location.pathname === item.path
-                    ? "rgba(255,255,255,0.15)"
+                    ? isEcoMode
+                      ? "#e5e7eb"
+                      : "rgba(255,255,255,0.15)"
                     : "transparent",
                 transition: "background 0.15s",
               }}
@@ -174,7 +180,7 @@ export default function Layout({ children }) {
         <div
           style={{
             padding: "1rem",
-            borderTop: "1px solid rgba(255,255,255,0.1)",
+            borderTop: isEcoMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
           }}
         >
           {((!collapsed && isDesktop) || !isDesktop) && (
@@ -183,6 +189,7 @@ export default function Layout({ children }) {
                 marginBottom: "0.5rem",
                 fontSize: "0.8rem",
                 opacity: 0.8,
+                color: isEcoMode ? "#374151" : "inherit",
               }}
             >
               <div style={{ fontWeight: 600 }}>
@@ -192,13 +199,32 @@ export default function Layout({ children }) {
             </div>
           )}
           <button
+            onClick={toggleEcoMode}
+            title={isEcoMode ? "Désactiver mode éco-conception" : "Activer mode éco-conception"}
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              background: isEcoMode ? "rgba(34, 197, 94, 0.2)" : "rgba(255,255,255,0.1)",
+              color: isEcoMode ? "#22c55e" : "white",
+              border: isEcoMode ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.2)",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              marginBottom: "0.5rem",
+              fontWeight: isEcoMode ? 600 : 400,
+              transition: "all 0.3s",
+            }}
+          >
+            {isEcoMode ? "♻️ Éco-conception" : "♻️ Mode normal"}
+          </button>
+          <button
             onClick={handleLogout}
             style={{
               width: "100%",
               padding: "0.5rem",
-              background: "rgba(255,255,255,0.1)",
-              color: "white",
-              border: "none",
+              background: isEcoMode ? "#f3f4f6" : "rgba(255,255,255,0.1)",
+              color: isEcoMode ? "#374151" : "white",
+              border: isEcoMode ? "1px solid #d1d5db" : "none",
               borderRadius: "6px",
               cursor: "pointer",
               fontSize: "0.85rem",
@@ -220,6 +246,7 @@ export default function Layout({ children }) {
           paddingRight: !isDesktop ? "1rem" : "2rem",
           paddingBottom: "2rem",
           minHeight: "100vh",
+          background: isEcoMode ? "#fafafa" : "#f8fafc",
         }}
       >
         {children}

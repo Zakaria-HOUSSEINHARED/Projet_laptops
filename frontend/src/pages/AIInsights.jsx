@@ -1,7 +1,9 @@
 import { useState } from "react";
 import api from "../services/api";
+import { useEcoDesign } from "../context/EcoDesignContext";
 
 export default function AIInsights() {
+  const { isEcoMode } = useEcoDesign();
   const [demande, setDemande] = useState("");
   const [rapport, setRapport] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -28,7 +30,7 @@ export default function AIInsights() {
     setError("");
     setRapport(null);
     try {
-      const res = await api.post("/ia/rapport", { demande });
+      const res = await api.post("/ia/rapport", { demande, ecoMode: isEcoMode });
       setRapport(res.data.rapport);
     } catch (err) {
       setError(err.response?.data?.message || "Erreur service IA");
@@ -44,6 +46,7 @@ export default function AIInsights() {
     try {
       const res = await api.post("/ia/diagnostic", {
         description_panne: descPanne,
+        ecoMode: isEcoMode,
       });
       setDiagnostic(res.data);
     } catch (err) {

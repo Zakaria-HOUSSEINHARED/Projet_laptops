@@ -17,6 +17,40 @@ Thumbs.db
 
 # Build
 frontend/build/
+dist/
+build/
 
 # Test user script
 backend/create-test-user.js
+
+# LaTeX Reports & Images
+*.tex
+*.pdf
+*.aux
+*.out
+*.toc
+images/
+docs/
+
+# Documentation & Reports (don't push)
+AJOUTS_RAPPORT_LATEX.md
+DOSSIER_DEVELOPPEMENT.md
+GUIDE_DEPLOIEMENT.md
+OPTIMISATIONS_IA.md
+OPTIMISATIONS_IMPLEMENTED.md
+OPTIMISATIONS_RESUMEE.md
+Rapport_Phase2_Ameliore.tex
+README_DETAILED.md
+
+# Broken files
+backend/test-performance.ccoDesignCcoDesignContext.jsx
+
+# Backup files
+*.bak
+*.backup
+*.swp
+*~
+
+# Database
+database.sql
+*.sql

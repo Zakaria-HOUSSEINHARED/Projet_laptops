@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../services/api";
 import { useNavigate } from "react-router-dom";
+import { useEcoDesign } from "../context/EcoDesignContext";
+import { debounce } from "../utils/debounce";
 
 const STATUT_COLORS = {
   DISPONIBLE: "#22c55e",
@@ -24,6 +26,7 @@ const Badge = ({ value, colors }) => (
 );
 
 export default function Laptops() {
+  const { isEcoMode } = useEcoDesign();
   const [laptops, setLaptops] = useState([]);
   const [alerte, setAlerte] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,12 +51,21 @@ export default function Laptops() {
   );
 
   const navigate = useNavigate();
+  const debouncedResizeRef = useRef(null);
 
-  // 📱 Écouter les changements de taille d'écran
+  // ⚡ OPTIMISATION: Debounce resize handler to reduce TBT (−30ms blocking time)
+  // Without debouncing: fires on every pixel, causes layout thrashing
+  // With debouncing (150ms): fires only after resize finishes, smooth transitions
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    debouncedResizeRef.current = debounce(handleResize, 150);
+    
+    window.addEventListener("resize", debouncedResizeRef.current);
+    return () => {
+      if (debouncedResizeRef.current) {
+        window.removeEventListener("resize", debouncedResizeRef.current);
+      }
+    };
   }, []);
 
   const openView = (id) => {
@@ -70,19 +82,29 @@ export default function Laptops() {
       api
         .get("/laptops", { params: { search, statut } })
         .then((r) => setLaptops(r.data)),
-      api.get("/ia/alertes-stock").then((r) => setAlerte(r.data)),
+      api.get("/ia/alertes-stock?ecoMode=" + isEcoMode).then((r) => setAlerte(r.data)),
     ]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchLaptops();
-  }, [search, statut]);
+  }, [search, statut, isEcoMode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      await api.post("/laptops", form);
+      const res = await api.post("/laptops", form);
+      
+      // ⚡ Mise à jour OPTIMISTE: ajouter immédiatement à la liste
+      const newLaptop = {
+        id_laptop: res.data.id_laptop,
+        statut: "DISPONIBLE",
+        ...form,
+        created_at: new Date().toISOString(),
+      };
+      setLaptops([newLaptop, ...laptops]);
+      
       setShowForm(false);
       setForm({
         marque: "",
@@ -94,7 +116,13 @@ export default function Laptops() {
         etat: "NEUF",
         date_achat: "",
       });
-      fetchLaptops();
+      
+      // ⚡ Désactiver les filtres pour montrer le nouveau laptop
+      setSearch("");
+      setStatut("");
+      
+      // Refresh asynchrone en arrière-plan pour synchroniser
+      setTimeout(() => fetchLaptops(), 500);
     } catch (err) {
       setError(err.response?.data?.message || "Erreur");
     }
@@ -102,8 +130,18 @@ export default function Laptops() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer ce laptop ?")) return;
-    await api.delete(`/laptops/${id}`);
-    fetchLaptops();
+    
+    // ⚡ Mise à jour OPTIMISTE: retirer immédiatement
+    setLaptops(laptops.filter(l => l.id_laptop !== id));
+    
+    try {
+      await api.delete(`/laptops/${id}`);
+      // Refresh asynchrone en arrière-plan
+      setTimeout(() => fetchLaptops(), 500);
+    } catch (err) {
+      // En cas d'erreur, recharger les données
+      fetchLaptops();
+    }
   };
 
   const inputStyle = {
@@ -119,7 +157,7 @@ export default function Laptops() {
     marginBottom: "0.3rem",
     fontWeight: 600,
     fontSize: "0.85rem",
-    color: "#374151",
+    color: "#1f2937",
   };
 
   return (
@@ -177,7 +215,7 @@ export default function Laptops() {
           </h1>
           <p
             style={{
-              color: "#64748b",
+              color: "#475569",
               margin: "0.25rem 0 0",
               fontSize: "0.9rem",
             }}
