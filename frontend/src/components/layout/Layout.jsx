@@ -91,7 +91,9 @@ export default function Layout({ children }) {
         <div
           style={{
             padding: "1.5rem 1rem",
-            borderBottom: isEcoMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
+            borderBottom: isEcoMode
+              ? "1px solid #d1d5db"
+              : "1px solid rgba(255,255,255,0.1)",
             display: "flex",
             alignItems: "center",
             gap: "0.75rem",
@@ -180,7 +182,9 @@ export default function Layout({ children }) {
         <div
           style={{
             padding: "1rem",
-            borderTop: isEcoMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
+            borderTop: isEcoMode
+              ? "1px solid #d1d5db"
+              : "1px solid rgba(255,255,255,0.1)",
           }}
         >
           {((!collapsed && isDesktop) || !isDesktop) && (
@@ -200,13 +204,21 @@ export default function Layout({ children }) {
           )}
           <button
             onClick={toggleEcoMode}
-            title={isEcoMode ? "Désactiver mode éco-conception" : "Activer mode éco-conception"}
+            title={
+              isEcoMode
+                ? "Désactiver mode éco-conception"
+                : "Activer mode éco-conception"
+            }
             style={{
               width: "100%",
               padding: "0.5rem",
-              background: isEcoMode ? "rgba(34, 197, 94, 0.2)" : "rgba(255,255,255,0.1)",
+              background: isEcoMode
+                ? "rgba(34, 197, 94, 0.2)"
+                : "rgba(255,255,255,0.1)",
               color: isEcoMode ? "#22c55e" : "white",
-              border: isEcoMode ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.2)",
+              border: isEcoMode
+                ? "1px solid #22c55e"
+                : "1px solid rgba(255,255,255,0.2)",
               borderRadius: "6px",
               cursor: "pointer",
               fontSize: "0.85rem",

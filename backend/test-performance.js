@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 🧪 Test de Performance - Service IA
- * 
+ *
  * Mesure le temps de réponse des rapports IA
  * Usage: node test-performance.js
  */
@@ -84,9 +84,7 @@ async function main() {
     console.warn(
       "⚠️  Attention: TEST_JWT non défini. Certains tests peuvent échouer.",
     );
-    console.warn(
-      "   Définir: export TEST_JWT='votre_token_jwt_ici'\n",
-    );
+    console.warn("   Définir: export TEST_JWT='votre_token_jwt_ici'\n");
   }
 
   for (const test of tests) {

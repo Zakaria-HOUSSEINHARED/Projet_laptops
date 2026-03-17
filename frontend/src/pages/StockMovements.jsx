@@ -32,7 +32,7 @@ export default function StockMovements() {
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
     debouncedResizeRef.current = debounce(handleResize, 150);
-    
+
     window.addEventListener("resize", debouncedResizeRef.current);
     return () => {
       if (debouncedResizeRef.current) {

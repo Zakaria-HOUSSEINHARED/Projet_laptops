@@ -13,17 +13,19 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000" }));
 
 // 📦 Compression: gzip pour -50% taille réponses (Lighthouse +5pts)
-app.use(compression({
-  level: 6,                    // Level 6 = optimal balance speed/ratio
-  threshold: 1024,            // Only compress if > 1KB
-  filter: (req, res) => {
-    // Compress JSON, HTML, but not images/videos
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+app.use(
+  compression({
+    level: 6, // Level 6 = optimal balance speed/ratio
+    threshold: 1024, // Only compress if > 1KB
+    filter: (req, res) => {
+      // Compress JSON, HTML, but not images/videos
+      if (req.headers["x-no-compression"]) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -53,7 +55,7 @@ app.use((req, res, next) => {
   else {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   }
-  
+
   // ℹ️ ETag pour meilleure revalidation (Lighthouse: Efficient cache policy)
   res.set("ETag", `"${Date.now()}"`);
   next();

@@ -57,7 +57,9 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       api.get("/laptops/stats").then((r) => setStats(r.data)),
-      api.get("/ia/alertes-stock?ecoMode=" + isEcoMode).then((r) => setAlerte(r.data)),
+      api
+        .get("/ia/alertes-stock?ecoMode=" + isEcoMode)
+        .then((r) => setAlerte(r.data)),
     ]).finally(() => setLoading(false));
   }, [isEcoMode]);
 

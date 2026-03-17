@@ -29,6 +29,7 @@ backend/create-test-user.js
 *.aux
 *.out
 *.toc
+!*.sql
 images/
 docs/
 
@@ -50,7 +51,3 @@ backend/test-performance.ccoDesignCcoDesignContext.jsx
 *.backup
 *.swp
 *~
-
-# Database
-database.sql
-*.sql

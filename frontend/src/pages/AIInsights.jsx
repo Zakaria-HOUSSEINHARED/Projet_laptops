@@ -30,7 +30,10 @@ export default function AIInsights() {
     setError("");
     setRapport(null);
     try {
-      const res = await api.post("/ia/rapport", { demande, ecoMode: isEcoMode });
+      const res = await api.post("/ia/rapport", {
+        demande,
+        ecoMode: isEcoMode,
+      });
       setRapport(res.data.rapport);
     } catch (err) {
       setError(err.response?.data?.message || "Erreur service IA");

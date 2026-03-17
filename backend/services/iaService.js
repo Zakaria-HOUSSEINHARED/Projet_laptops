@@ -18,14 +18,14 @@ const CONFIG_NORMAL = {
 
 // 🌱 Configuration ÉCO-CONCEPTION (ultra-optimisée, très rapide, moins de ressources)
 const CONFIG_ECO = {
-  TIMEOUT_MS: 1500,          // ⚡ 2500ms → 1500ms (40% plus rapide)
-  TEMPERATURE: 0.2,          // Très déterministe
-  NUM_PREDICT: 25,           // 40 → 25 tokens (37% réduction)
-  TOP_P: 0.6,                // Moins d'exploration
+  TIMEOUT_MS: 1500, // ⚡ 2500ms → 1500ms (40% plus rapide)
+  TEMPERATURE: 0.2, // Très déterministe
+  NUM_PREDICT: 25, // 40 → 25 tokens (37% réduction)
+  TOP_P: 0.6, // Moins d'exploration
   REPEAT_PENALTY: 1.0,
-  NUM_CTX: 128,              // 256 → 128 (50% moins de contexte)
+  NUM_CTX: 128, // 256 → 128 (50% moins de contexte)
   KEEP_ALIVE: "2m",
-  MAX_LAPTOPS: 2,            // 3 → 2 (moins de données)
+  MAX_LAPTOPS: 2, // 3 → 2 (moins de données)
   MAX_ITEMS: 1,
 };
 
@@ -571,7 +571,7 @@ const genererRapportIA = async (req, res) => {
     console.log(
       "🤖 Question complexe détectée, passage par LLM...",
       demande?.substring(0, 50),
-      ecoMode ? "(mode éco)" : ""  // Log si mode éco
+      ecoMode ? "(mode éco)" : "", // Log si mode éco
     );
 
     const total = donnees.totaux.total || 1; // évite division par zéro
@@ -621,11 +621,9 @@ Réponds UNIQUEMENT en JSON valide:
 
     // ⚡ Une seule tentative (si timeout, fallback. Pas de retry = plus rapide)
     try {
-      reponse = await chatOllama(
-        "Analyste IT. JSON seulement.",
-        prompt,
-        { forceJson: true },
-      );
+      reponse = await chatOllama("Analyste IT. JSON seulement.", prompt, {
+        forceJson: true,
+      });
     } catch (apiErr) {
       console.warn("Ollama timeout/err, fallback:", apiErr.message);
       reponse = null; // Forcer fallback
@@ -686,7 +684,7 @@ Réponds UNIQUEMENT en JSON valide:
 const diagnosticIA = async (req, res) => {
   const { description_panne, id_laptop, ecoMode } = req.body;
   const config = getConfig(ecoMode); // 🌱 Charger la config selon le mode
-  
+
   if (!description_panne)
     return res.status(400).json({ message: "Description de la panne requise" });
 
@@ -771,7 +769,7 @@ const getHistoriqueRapports = async (req, res) => {
  */
 const verifierAlertesStock = async (req, res) => {
   const ecoMode = req.query.ecoMode === "true"; // 🌱 Récupérer le paramètre depuis query string
-  
+
   try {
     const [rows] = await pool.query(
       `SELECT 

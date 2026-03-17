@@ -59,7 +59,7 @@ export default function Laptops() {
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
     debouncedResizeRef.current = debounce(handleResize, 150);
-    
+
     window.addEventListener("resize", debouncedResizeRef.current);
     return () => {
       if (debouncedResizeRef.current) {
@@ -82,7 +82,9 @@ export default function Laptops() {
       api
         .get("/laptops", { params: { search, statut } })
         .then((r) => setLaptops(r.data)),
-      api.get("/ia/alertes-stock?ecoMode=" + isEcoMode).then((r) => setAlerte(r.data)),
+      api
+        .get("/ia/alertes-stock?ecoMode=" + isEcoMode)
+        .then((r) => setAlerte(r.data)),
     ]).finally(() => setLoading(false));
   };
 
@@ -95,7 +97,7 @@ export default function Laptops() {
     setError("");
     try {
       const res = await api.post("/laptops", form);
-      
+
       // ⚡ Mise à jour OPTIMISTE: ajouter immédiatement à la liste
       const newLaptop = {
         id_laptop: res.data.id_laptop,
@@ -104,7 +106,7 @@ export default function Laptops() {
         created_at: new Date().toISOString(),
       };
       setLaptops([newLaptop, ...laptops]);
-      
+
       setShowForm(false);
       setForm({
         marque: "",
@@ -116,11 +118,11 @@ export default function Laptops() {
         etat: "NEUF",
         date_achat: "",
       });
-      
+
       // ⚡ Désactiver les filtres pour montrer le nouveau laptop
       setSearch("");
       setStatut("");
-      
+
       // Refresh asynchrone en arrière-plan pour synchroniser
       setTimeout(() => fetchLaptops(), 500);
     } catch (err) {
@@ -130,10 +132,10 @@ export default function Laptops() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer ce laptop ?")) return;
-    
+
     // ⚡ Mise à jour OPTIMISTE: retirer immédiatement
-    setLaptops(laptops.filter(l => l.id_laptop !== id));
-    
+    setLaptops(laptops.filter((l) => l.id_laptop !== id));
+
     try {
       await api.delete(`/laptops/${id}`);
       // Refresh asynchrone en arrière-plan
