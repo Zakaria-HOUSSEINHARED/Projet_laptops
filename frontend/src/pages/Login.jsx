@@ -102,7 +102,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="admin@laptopstock.com"
+              placeholder="test@example.com"
               style={{
                 width: "100%",
                 padding: "0.75rem",
@@ -172,7 +172,7 @@ export default function Login() {
             marginTop: "1.5rem",
           }}
         >
-          Compte test : admin@laptopstock.com
+          Compte test : test@example.com / Mot de passe : test123
         </p>
       </div>
     </div>
